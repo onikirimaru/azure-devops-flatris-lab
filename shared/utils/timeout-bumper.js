@@ -6,12 +6,23 @@ type TimeoutConfig = {
 };
 
 export function createTimeoutBumper(...configs: Array<TimeoutConfig>) {
-  const timeoutStep: { [string]: number } = {};
-  const timeouts: { [string]: TimeoutID } = {};
+  // Use Object.create(null) to create prototype-less objects that are immune
+  // to prototype pollution attacks via __proto__, constructor, etc.
+  const timeoutStep: { [string]: number } = Object.create(null);
+  const timeouts: { [string]: TimeoutID } = Object.create(null);
 
   function schedule(id: string) {
     const step = timeoutStep[id];
     const config = configs[step];
+    
+    // Guard against undefined config to prevent crashes from invalid state
+    if (!config) {
+      console.error(`Invalid timeout step ${step} for id ${id}`);
+      delete timeoutStep[id];
+      delete timeouts[id];
+      return;
+    }
+    
     const { handler, timeout } = config;
 
     timeouts[id] = setTimeout(() => {
