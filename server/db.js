@@ -91,7 +91,7 @@ function genRandUniqId(collection: { [id: string]: any }): string {
 }
 
 function genRandId(): string {
-  return crypto.randomBytes(4).toString('hex');
+  return crypto.randomBytes(32).toString('hex');
 }
 
 function removeGame(gameId: GameId) {
