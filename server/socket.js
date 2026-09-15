@@ -44,7 +44,13 @@ export function attachSocket(server: net$Server) {
     socket.on('game-keep-alive', (gameId: GameId) => {
       console.log(`[SOCKET] game-keep-alive ${gameId}`);
 
-      if (!games[gameId]) {
+      // Validate gameId format and ensure it's an own property to prevent
+      // prototype pollution attacks (e.g., __proto__, constructor, etc.)
+      if (
+        typeof gameId !== 'string' ||
+        !/^[a-f0-9]+$/.test(gameId) ||
+        !Object.prototype.hasOwnProperty.call(games, gameId)
+      ) {
         // NOTE: This message can flood the logs if client gets stuck
         // console.warn(`Received keep-alive for missing game ${gameId}`);
 
@@ -62,14 +68,21 @@ export function attachSocket(server: net$Server) {
       // console.log('[SOCKET] game-action', action);
 
       const { gameId } = action.payload;
-      const prevGame = games[gameId];
-      if (!prevGame) {
+      
+      // Validate gameId format and ensure it's an own property to prevent
+      // prototype pollution attacks (e.g., __proto__, constructor, etc.)
+      if (
+        typeof gameId !== 'string' ||
+        !/^[a-f0-9]+$/.test(gameId) ||
+        !Object.prototype.hasOwnProperty.call(games, gameId)
+      ) {
         // NOTE: This message can flood the logs if client gets stuck
         // console.warn(`Received keep-alive for missing game ${gameId}`);
 
         // Notify client to leave expired game page
         socket.emit('game-removed', gameId);
       } else {
+        const prevGame = games[gameId];
         try {
           const game = gameReducer(prevGame, action);
           games[gameId] = game;

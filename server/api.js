@@ -35,7 +35,14 @@ export function addRoutes(app: express$Application) {
   app.get('/game/:gameId', (req: express$Request, res: express$Response) => {
     const gameId = req.params.gameId;
 
-    if (gameId && games[gameId]) {
+    // Validate gameId format and ensure it's an own property to prevent
+    // prototype pollution attacks (e.g., __proto__, constructor, etc.)
+    if (
+      gameId &&
+      typeof gameId === 'string' &&
+      /^[a-f0-9]+$/.test(gameId) &&
+      Object.prototype.hasOwnProperty.call(games, gameId)
+    ) {
       res.json(games[gameId]);
     } else {
       res.sendStatus(404);
@@ -69,7 +76,13 @@ export function addRoutes(app: express$Application) {
       const backfillReq = extractBackfillRequest(req.body);
       const { gameId } = backfillReq;
 
-      if (!games[gameId]) {
+      // Validate gameId format and ensure it's an own property to prevent
+      // prototype pollution attacks (e.g., __proto__, constructor, etc.)
+      if (
+        typeof gameId !== 'string' ||
+        !/^[a-f0-9]+$/.test(gameId) ||
+        !Object.prototype.hasOwnProperty.call(games, gameId)
+      ) {
         console.warn(`Can't backfill missing game ${gameId}`);
         res.sendStatus(404);
       } else {
@@ -115,7 +128,14 @@ export function addRoutes(app: express$Application) {
   app.get('/debug/:gameId', (req: express$Request, res: express$Response) => {
     const gameId = req.params.gameId;
 
-    if (gameId && games[gameId]) {
+    // Validate gameId format and ensure it's an own property to prevent
+    // prototype pollution attacks (e.g., __proto__, constructor, etc.)
+    if (
+      gameId &&
+      typeof gameId === 'string' &&
+      /^[a-f0-9]+$/.test(gameId) &&
+      Object.prototype.hasOwnProperty.call(games, gameId)
+    ) {
       res.json({
         game: games[gameId],
         actions: gameActions[gameId]
@@ -132,12 +152,27 @@ function getUserFromReqSession(req: express$Request): User {
     throw new Error(`Session not found in cookies`);
   }
 
-  const session = sessions[sessionId];
-  if (!session) {
+  // Validate sessionId format and ensure it's an own property to prevent
+  // prototype pollution attacks (e.g., __proto__, constructor, etc.)
+  if (
+    typeof sessionId !== 'string' ||
+    !/^[a-f0-9]+$/.test(sessionId) ||
+    !Object.prototype.hasOwnProperty.call(sessions, sessionId)
+  ) {
     throw new Error(`Invalid session id ${sessionId}`);
   }
 
+  const session = sessions[sessionId];
   const { userId } = session;
+
+  // Validate userId format and ensure it's an own property
+  if (
+    typeof userId !== 'string' ||
+    !/^[a-f0-9]+$/.test(userId) ||
+    !Object.prototype.hasOwnProperty.call(users, userId)
+  ) {
+    throw new Error(`Invalid user id ${userId}`);
+  }
 
   return users[userId];
 }

@@ -72,6 +72,19 @@ export function saveGameAction(action: GameAction): void {
 }
 
 export function bumpActiveGame(gameId: GameId) {
+  // Validate gameId format to prevent prototype pollution attacks
+  // This is a defense-in-depth measure; primary validation should occur at entry points
+  if (typeof gameId !== 'string' || !/^[a-f0-9]+$/.test(gameId)) {
+    console.error(`Invalid gameId format: ${gameId}`);
+    return;
+  }
+  
+  // Ensure the game actually exists as an own property
+  if (!Object.prototype.hasOwnProperty.call(games, gameId)) {
+    console.error(`Attempted to bump non-existent game: ${gameId}`);
+    return;
+  }
+  
   // Inactive games will not be shown in the dashboard after some time, and
   // removed completely after more time
   if (activeGames.indexOf(gameId) === -1) {
