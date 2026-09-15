@@ -18,6 +18,9 @@ import type { User } from 'shared/types/state';
 import type { BackfillRequest, BackfillResponse } from 'shared/types/api';
 import type { SessionId } from './db';
 
+// Backfill response limit to prevent excessive data transfer
+const MAX_BACKFILL_ACTIONS = 5000; // Maximum actions to return in a single backfill
+
 export function addRoutes(app: express$Application) {
   app.get('/dashboard', async (req: express$Request, res: express$Response) => {
     try {
@@ -186,6 +189,16 @@ function getBackfillRes(req: BackfillRequest): BackfillResponse {
       !player || (player && action.payload.actionId > player.from)
     );
   });
+
+  // Enforce backfill response limit to prevent excessive data transfer
+  // and client-side processing
+  if (actions.length > MAX_BACKFILL_ACTIONS) {
+    console.warn(
+      `Backfill for game ${gameId} would return ${actions.length} actions, limiting to ${MAX_BACKFILL_ACTIONS}`
+    );
+    // Return the most recent actions
+    return { gameId, actions: actions.slice(-MAX_BACKFILL_ACTIONS) };
+  }
 
   return { gameId, actions };
 }

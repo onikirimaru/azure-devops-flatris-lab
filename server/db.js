@@ -13,6 +13,9 @@ import { createTimeoutBumper } from 'shared/utils/timeout-bumper';
 import type { GameId, Game, UserId, User } from 'shared/types/state';
 import type { GameAction } from 'shared/types/actions';
 
+// Action retention limits to prevent unbounded memory growth
+const MAX_ACTIONS_PER_GAME = 10000; // Maximum actions to retain per game
+
 export type SessionId = string;
 export type Session = { id: SessionId, userId: UserId };
 
@@ -68,7 +71,23 @@ export function insertGame(user: User): Game {
 export function saveGameAction(action: GameAction): void {
   const { gameId } = action.payload;
 
-  gameActions[gameId].push(action);
+  const actions = gameActions[gameId];
+  if (!actions) {
+    console.warn(`Attempted to save action for non-existent game ${gameId}`);
+    return;
+  }
+
+  actions.push(action);
+
+  // Enforce action retention limit to prevent unbounded memory growth
+  if (actions.length > MAX_ACTIONS_PER_GAME) {
+    // Remove oldest actions, keeping the most recent MAX_ACTIONS_PER_GAME
+    const excess = actions.length - MAX_ACTIONS_PER_GAME;
+    actions.splice(0, excess);
+    console.log(
+      `Trimmed ${excess} old actions from game ${gameId}, now at ${actions.length}`
+    );
+  }
 }
 
 export function bumpActiveGame(gameId: GameId) {
