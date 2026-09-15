@@ -7,6 +7,7 @@ import {
   ACTION_STATS_FLUSH_INTERVAL,
   ACTION_STATS_FLUSH_DELAY
 } from 'shared/constants/timeouts';
+import { WELL_ROWS } from 'shared/constants/grid';
 import { games, saveGameAction, bumpActiveGame } from './db';
 import {
   onStatsChange,
@@ -23,6 +24,36 @@ import { rollbar } from './rollbar';
 import type { GameId, Game } from 'shared/types/state';
 import type { GameAction } from 'shared/types/actions';
 import type { RoomId } from 'shared/types/api';
+
+function isValidGameAction(action: GameAction): boolean {
+  // Validate that all numeric values in the action payload are finite
+  if (action.type === 'DROP') {
+    const { rows } = action.payload;
+    // Ensure rows is a finite number within reasonable bounds
+    // Maximum reasonable drop is the entire well height
+    if (
+      typeof rows !== 'number' ||
+      !Number.isFinite(rows) ||
+      rows < 0 ||
+      rows > WELL_ROWS * 2
+    ) {
+      return false;
+    }
+  }
+  
+  // Validate common payload fields that should be finite
+  const { actionId, prevActionId } = action.payload;
+  if (
+    typeof actionId !== 'number' ||
+    !Number.isFinite(actionId) ||
+    typeof prevActionId !== 'number' ||
+    !Number.isFinite(prevActionId)
+  ) {
+    return false;
+  }
+  
+  return true;
+}
 
 export function attachSocket(server: net$Server) {
   const io = socketIo(server);
@@ -69,6 +100,14 @@ export function attachSocket(server: net$Server) {
 
         // Notify client to leave expired game page
         socket.emit('game-removed', gameId);
+      } else if (!isValidGameAction(action)) {
+        // Reject actions with non-finite or out-of-bounds numeric values
+        rollbar.warning('Invalid game action received', { action });
+        console.warn(
+          `[SOCKET] Invalid game action ${action.type} rejected`,
+          action.payload
+        );
+        // Do not process invalid actions to prevent DoS
       } else {
         try {
           const game = gameReducer(prevGame, action);
